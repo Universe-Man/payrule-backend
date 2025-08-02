@@ -41,27 +41,27 @@ if (!env.success) {
 }
 
 export const config = {
-  NODE_ENV: env.data.NODE_ENV,
-  PORT: env.data.PORT,
-  HOST: env.data.HOST,
-  LOG_LEVEL: env.data.LOG_LEVEL,
+  NODE_ENV: env.data!.NODE_ENV,
+  PORT: env.data!.PORT,
+  HOST: env.data!.HOST,
+  LOG_LEVEL: env.data!.LOG_LEVEL,
 
-  DATABASE_URL: env.data.DATABASE_URL,
+  DATABASE_URL: env.data!.DATABASE_URL,
 
-  JWT_SECRET: env.data.JWT_SECRET,
-  JWT_EXPIRES_IN: env.data.JWT_EXPIRES_IN,
-  JWT_REFRESH_SECRET: env.data.JWT_REFRESH_SECRET,
-  JWT_REFRESH_EXPIRES_IN: env.data.JWT_REFRESH_EXPIRES_IN,
+  JWT_SECRET: env.data!.JWT_SECRET,
+  JWT_EXPIRES_IN: env.data!.JWT_EXPIRES_IN,
+  JWT_REFRESH_SECRET: env.data!.JWT_REFRESH_SECRET,
+  JWT_REFRESH_EXPIRES_IN: env.data!.JWT_REFRESH_EXPIRES_IN,
 
-  RATE_LIMIT_MAX: env.data.RATE_LIMIT_MAX,
-  RATE_LIMIT_WINDOW: env.data.RATE_LIMIT_WINDOW,
+  RATE_LIMIT_MAX: env.data!.RATE_LIMIT_MAX,
+  RATE_LIMIT_WINDOW: env.data!.RATE_LIMIT_WINDOW,
 
-  STRIPE_SECRET_KEY: env.data.STRIPE_SECRET_KEY,
-  STRIPE_WEBHOOK_SECRET: env.data.STRIPE_WEBHOOK_SECRET,
+  STRIPE_SECRET_KEY: env.data!.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: env.data!.STRIPE_WEBHOOK_SECRET,
 
-  ENCRYPTION_KEY: env.data.ENCRYPTION_KEY,
-  CORS_ORIGIN: env.data.CORS_ORIGIN,
-} as const;
+  ENCRYPTION_KEY: env.data!.ENCRYPTION_KEY,
+  CORS_ORIGIN: env.data!.CORS_ORIGIN,
+};
 
 // Type for configuration
 export type Config = typeof config;
