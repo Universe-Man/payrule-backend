@@ -1,4 +1,6 @@
-import Fastify, { FastifyInstance } from 'fastify';
+import * as fastifyImport from 'fastify';
+const fastify = fastifyImport.default;
+import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { config } from './config/config';
 import { registerPlugins } from './plugins';
@@ -11,16 +13,20 @@ const prisma = new PrismaClient({
 });
 
 // Create Fastify instance
-const server: FastifyInstance = Fastify({
-  logger: {
+const server: FastifyInstance = fastify({
+  logger: config.NODE_ENV === 'development' ? {
     level: config.LOG_LEVEL,
-    transport: config.NODE_ENV === 'development' ? {
+    transport: {
       target: 'pino-pretty',
       options: {
         colorize: true,
+        translateTime: 'HH:MM:ss Z',
+        ignore: 'pid,hostname',
       },
-    } : undefined,
-  },
+    },
+  } : {
+      level: config.LOG_LEVEL,
+    },
 });
 
 // Declare module augmentation for TypeScript
@@ -32,9 +38,6 @@ declare module 'fastify' {
 
 // Register Prisma as a decorator
 server.decorate('prisma', prisma);
-
-// Global error handler
-server.setErrorHandler(errorHandler);
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
@@ -60,8 +63,11 @@ const start = async (): Promise<void> => {
     await prisma.$connect();
     server.log.info('Database connected successfully');
 
-    // Register plugins
+    // Register plugins first
     await registerPlugins(server);
+
+    // Global error handler (after plugins)
+    (server as any).setErrorHandler(errorHandler);
 
     // Register routes
     await registerRoutes(server);
@@ -81,13 +87,13 @@ const start = async (): Promise<void> => {
 };
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
   server.log.error('Unhandled Rejection at:', promise, 'reason:', reason);
   gracefulShutdown();
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   server.log.error('Uncaught Exception thrown:', error);
   gracefulShutdown();
 });
