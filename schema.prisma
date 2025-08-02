@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PAYRULE_DATABASE_URL")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  address     String?
+  taxId       String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  employees   Employee[]
+  payrolls    Payroll[]
+  auditLogs   AuditLog[]
+
+  @@map("companies")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  firstName   String
+  lastName    String
+  role        UserRole @default(EMPLOYEE)
+  isActive    Boolean  @default(true)
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  employee    Employee?
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+model Employee {
+  id            String         @id @default(cuid())
+  userId        String?        @unique
+  companyId     String
+  employeeId    String         // Company-specific employee ID
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  address       String?
+  dateOfBirth   DateTime?
+  hireDate      DateTime
+  terminationDate DateTime?
+  
+  // Employment details
+  jobTitle      String
+  department    String?
+  employmentType EmploymentType @default(FULL_TIME)
+  payType       PayType        @default(SALARY)
+  baseSalary    Decimal?       @db.Decimal(10, 2)
+  hourlyRate    Decimal?       @db.Decimal(8, 2)
+  
+  // Tax information
+  taxId         String?        // SSN or equivalent
+  taxExemptions Int           @default(0)
+  
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id])
+  payrolls      Payroll[]
+  bankAccounts  BankAccount[]
+
+  @@unique([companyId, employeeId])
+  @@map("employees")
+}
+
+model PayrollPeriod {
+  id          String   @id @default(cuid())
+  companyId   String
+  startDate   DateTime
+  endDate     DateTime
+  payDate     DateTime
+  frequency   PayFrequency
+  status      PeriodStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  payrolls    Payroll[]
+
+  @@map("payroll_periods")
+}
+
+model Payroll {
+  id              String   @id @default(cuid())
+  companyId       String
+  employeeId      String
+  periodId        String
+  
+  // Calculated amounts
+  grossPay        Decimal  @db.Decimal(10, 2)
+  netPay          Decimal  @db.Decimal(10, 2)
+  totalTaxes      Decimal  @db.Decimal(10, 2)
+  totalDeductions Decimal  @db.Decimal(10, 2)
+  
+  status          PayrollStatus @default(DRAFT)
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period          PayrollPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  items           PayrollItem[]
+
+  @@unique([employeeId, periodId])
+  @@map("payrolls")
+}
+
+model PayrollItem {
+  id          String      @id @default(cuid())
+  payrollId   String
+  type        ItemType
+  category    String      // "salary", "overtime", "bonus", "federal_tax", "state_tax", "health_insurance", etc.
+  description String
+  amount      Decimal     @db.Decimal(10, 2)
+  rate        Decimal?    @db.Decimal(8, 2)
+  hours       Decimal?    @db.Decimal(5, 2)
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  payroll     Payroll     @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_items")
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  employeeId    String
+  accountName   String
+  routingNumber String
+  accountNumber String   // This should be encrypted in production
+  accountType   AccountType @default(CHECKING)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("bank_accounts")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String?
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// Enums
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  HR
+  PAYROLL_MANAGER
+  EMPLOYEE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum PayType {
+  SALARY
+  HOURLY
+}
+
+enum PayFrequency {
+  WEEKLY
+  BI_WEEKLY
+  SEMI_MONTHLY
+  MONTHLY
+}
+
+enum PeriodStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  PROCESSED
+}
+
+enum PayrollStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PROCESSED
+  PAID
+}
+
+enum ItemType {
+  EARNING
+  DEDUCTION
+  TAX
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+}
